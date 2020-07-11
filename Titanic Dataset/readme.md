@@ -12,3 +12,5 @@ The methods we intend to use are:
 * Random Forest
 
 After performing various classification algorithms and taking into account their accuracies, we can conclude all the models had an accuracy ranging from 78% to 84%. Out of which <b>Decision Tree</b> gave a slightly better accuracy of <b>83.46%</b>.
+
+This project was performed using R programming language : https://rpubs.com/deshpandeshrutika/titanic

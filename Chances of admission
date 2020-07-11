@@ -1,0 +1,2 @@
+The objective of this project is to perform data cleansing, and required transformations and build a predictive model which predicts their chances of admission for a particular university.
+The methods we intend to use are: Regression using OLS, Linear Regression, SVM and Decision Tree

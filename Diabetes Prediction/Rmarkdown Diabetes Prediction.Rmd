@@ -1,0 +1,164 @@
+---
+title: "Prediction of Diabetes"
+author: "Shrutika S. Deshpande"
+date: "10/23/2019"
+output:
+  html_document:
+    df_print: paged
+---
+## Dataset Information :
+This dataset is originally from the National Institute of Diabetes and Digestive and Kidney Diseases. The objective of the dataset is to diagnostically predict whether or not a patient has diabetes, based on certain diagnostic measurements included in the dataset. Several constraints were placed on the selection of these instances from a larger database. In particular, all patients here are females at least 21 years old of Pima Indian heritage.
+
+## Objective :
+The dataset consists of several medical predictor variables and one target variable, Outcome. Predictor variables includes the number of pregnancies the patient has had, their BMI, insulin level, age, and so on.
+
+The main objective is to predict whether the given person is having diabetes or not.
+
+The methods we intend to use are:
+
+* Binary Logistic Regression.
+* Naive Bayes algorithm
+* Support Vector Machine
+* K-nearest Neighbour
+
+## Description of variables :
+* Pregnancies - Number of times pregnant
+* Glucose - Plasma glucose concentration a 2 hours in an oral glucose tolerance test
+* Blood Pressure - Diastolic blood pressure (mm Hg)
+* Skin thickness - Triceps skin fold thickness (mm)
+* Insulin - 2-Hour serum insulin (mu U/ml)
+* BMI - Body mass index (weight in kg/(height in m)^2)
+* DiabetesPedigreeFunction - Diabetes pedigree function
+* Age - Age of Person
+* Outcome -  Class variable (0 = non-diabetic or 1 = diabetic)
+
+Prepare the data
+```{r}
+diab<-read.csv("D:/R studio files/diabetes.csv",header = T)
+head(diab)
+str(diab)
+```
+
+Checking whether the data contains any null values or not : 
+```{r}
+colSums(is.na(diab))
+```
+
+There are no null values present in our data.
+
+Checking summary of the data :
+```{r}
+summary(diab)
+diab1<-diab
+```
+
+Converting our dependent variable in factor :
+```{r}
+diab1$Outcome<-factor(diab1$Outcome)
+```
+
+## EDA
+```{r}
+diab1$Age<-cut(diab1$Age,breaks = c(18,30,50,Inf),labels = c("c1","c2","c3"))
+library(ggplot2)
+ggplot(diab1,aes(x=Age)) + geom_bar(aes(fill=Outcome)) +labs(x = "Age Group",y="Frequency",title = "Age Wise Distribution")
+```
+
+We can conclude that Age group of 30-50 have higher chances of being diabetic then other Age groups
+
+Partitioning data in training & testing :
+```{r}
+set.seed(100)
+index<-sample(nrow(diab1),0.75*nrow(diab1))
+train_diab<-diab1[index,]
+test_diab<-diab1[-index,]
+dim(train_diab)
+dim(test_diab)
+```
+
+## Applying Machine Learning Algorithms :
+
+### Binary Logistic Regression
+```{r}
+BLR<-glm(Outcome~.,data = train_diab,family = "binomial")
+summary(BLR)
+```
+
+AS we can see SkinThickness, Insulin, Age are insignificant variables we remove those columns and again partition it
+```{r}
+col1<-c("SkinThickness","Insulin","Age")
+diab1[,col1]<-list(NULL)
+
+index<-sample(nrow(diab1),0.75*nrow(diab1))
+train_diab<-diab1[index,]
+test_diab<-diab1[-index,]
+dim(train_diab)
+dim(test_diab)
+
+BLR1<-glm(Outcome~.,data = train_diab,family = "binomial")
+summary(BLR1)
+```
+
+```{r}
+train_diab_BLR<-fitted(BLR1)
+library(ROCR)
+pred<-prediction(train_diab_BLR,train_diab$Outcome)
+perf<-performance(pred,"tpr","fpr")
+plot(perf,colorize=T,print.cutoffs.at=seq(0.1,by=0.05))
+```
+
+```{r}
+library(caret)
+pred_BLR<-predict(BLR1,test_diab,type="response")
+pred_BLR1<-ifelse(pred_BLR<0.35,0,1)
+pred_BLR1<-as.factor(pred_BLR1)
+test_diab$Outcome<-as.factor(test_diab$Outcome)
+confusionMatrix(pred_BLR1,test_diab$Outcome)
+```
+
+Binary Logistic Regression gives us an accuracy of **76.56%**
+
+### Naive Bayes Algorithm
+
+Building the model on train data i.e. Training the data and finding the accuracy on test data
+````{r}
+library(e1071)
+NB_model<-naiveBayes(Outcome~.,data = train_diab)
+NB_pred<-predict(NB_model,test_diab)
+confusionMatrix(NB_pred,test_diab$Outcome)
+````
+
+Naive Bayes gives us an accuracy of **76.04%**
+
+### Support Vector Machine Algorithm
+
+Building the model on train data i.e. Training the data and finding the accuracy on test data
+```{r}
+SVM_model<-svm(Outcome~.,data = train_diab,kernel="linear",scale = F)
+SVM_pred<-predict(SVM_model,test_diab)
+SVM_pred<-as.factor(SVM_pred)
+confusionMatrix(SVM_pred,test_diab$Outcome)
+```
+
+SVM gives us an accuracy of **76.04%**
+
+### K-Nearest Neighbor Algorithm
+
+Building the model on train data i.e. Training the data and finding the accuracy on test data
+
+```{r}
+ytrain<-diab1$Outcome[index]
+ytest<-diab1$Outcome[-index]
+sqrt(nrow(train_diab))
+```
+
+```{r}
+library(class)
+KNN_model<-knn(train_diab,test_diab,k=23,cl = ytrain)
+confusionMatrix(ytest,KNN_model)
+```
+
+KNN gives us an accuracy of **75%**
+
+## Conclusion :
+After performing various classification algorithms and taking into account their accuracies, we can conclude all the models had an accuracy ranging from 75% to 77%. Out of which **Binary Logistic Regression** gave a slightly better accuracy of **76.56%**

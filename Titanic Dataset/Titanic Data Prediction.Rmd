@@ -1,0 +1,213 @@
+---
+title: "Prediction of Chances of Survival of Titanic Passengers"
+author: "Shrutika S. Deshpande"
+date: "4/24/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Overview :
+On April 15, 1912, during her maiden voyage, the Titanic sank after colliding with an iceberg, killing 1502 out of 2224 passengers and crew. This tragedy shocked the international community and lead to better safety regulations for ships. 
+One of the reasons that the shipwreck lead to such loss of life was that there were not enough lifeboats for the passengers and crew. Although there was some element of luck involved in surviving the sinking, some groups of people were more likely to survive than others, such as women, children, and the upper-class. 
+
+## Objective :
+The main objective of the dataset is to predict Chances of Survival based on several explanatory factors such as Pclass, Sex, Age, SibSp, Parch, etc. using Machine Learning algorithms.
+
+The methods we intend to use are:
+
+* Binary Logistic Regression
+* Naive Bayes
+* Decision Tree
+* Random Forest
+
+## Description of variables:
+* Survived - Survival (0 = Not Survived; 1 = Survived)
+* Pclass - Passenger Class (1 = 1st class; 2 = 2nd class; 3 = 3rd class)
+* Name - Name of the Passenger
+* Sex - Sex of the Passenger
+* Sibsp - Number of Siblings/Spouses Aboard
+* Parch - Number of Parents/Children Aboard
+* Ticket - Ticket Number
+* Fare - Passenger Fare
+* Cabin - Cabin
+* Embarked - Port of Embarkation (C = Cherbourg; Q = Queenstown; S = Southampton)
+
+## Data Pre-processing :
+
+Loading the data and checking the structure, first five rows and dimensions of the data
+```{r}
+library(readxl)
+Titanic<-read_excel("F:/Microsoft/Titanic.xls")
+str(Titanic)
+head(Titanic)
+dim(Titanic)
+```
+
+**Summary :**
+```{r}
+summary(Titanic)
+```
+
+Converting following variables to factor :
+
+* Survived - It is in numeric character datatype but for our analysis we want it in factor form.
+
+* Pclass - It is in numeric character datatype and as per the given description, the Pclass must be categorical.
+
+* Sex - It is in character datatype and as per the given description, the Sex must be categorical.
+
+* Embarked - It is in character datatype and as per the given description it is a port, so it must be in factor.
+
+```{r}
+names<-c("Survived","Pclass","Sex","Embarked")
+Titanic[,names]<-lapply(Titanic[,names], as.factor)
+str(Titanic)
+```
+
+Checking whether the data contains any null calues or not : 
+```{r}
+colSums(is.na(Titanic))
+```
+
+It is clearly seen that Age, Cabin and Embarked columns has null values. We must eliminate Cabin column as it has more no. of missing values and it does not have significance in the survival rate. For Age and Embarked we can replace the value with median and mode respectively. Converting the age variable to categorical to make it into groups.
+
+And also we'll eliminate Name, PassengerId and Ticket columns as it doesn't have any significance in the survival rate.
+
+```{r}
+col<-c("PassengerId","Name","Ticket","Cabin")
+Titanic[,col]<-list(NULL)
+Titanic1<-Titanic
+Titanic1$Age[is.na(Titanic1$Age)]<-28
+Titanic1$Age<-cut(Titanic1$Age,breaks = c(0,20,28,40,Inf),labels = c("c1","c2","c3","c4"))
+Titanic1$Embarked[is.na(Titanic1$Embarked)]<-"S" 
+#scaling the numeric data
+col_scale=c("SibSp","Parch","Fare")
+Titanic1[,col_scale]<-lapply(Titanic1[,col_scale], scale)
+colSums(is.na(Titanic1))
+```
+
+Now we are left with no missing values in the data, so we can proceed further
+
+## EDA: 
+**Age wise distribution :**
+```{r}
+library(ggplot2)
+ggplot(Titanic1,aes(x=Age)) + geom_bar(aes(fill=Survived)) +labs(x = "Age Group",y="Frequency",title = "Age Wise Distribution")
+```
+
+We can conclude that 45% of passengers survived were from the age group of 20 to 30.
+
+**Sex wise distribution :**
+```{r}
+ggplot(Titanic1,aes(x=Sex)) + geom_bar(aes(fill=Survived)) +labs(x = "Sex Group",y="Frequency",title = "Sex Wise Distribution")
+```
+
+We can conclude that majority of passengers survived were female as compared to male.
+
+```{r}
+ggplot(Titanic1,aes(x=Pclass)) + geom_bar(aes(fill=Survived)) +labs(x="Passenger Class",y = "Frequency",title = "Passenger Class wise Distribution")
+```
+
+We can conclude that most passengers survived were from 1st class followed by 3rd class and then 2nd class
+
+### Splitting Data
+```{r}
+library(caret)
+set.seed(100) # keeping split constant in every iteration
+index<-createDataPartition(Titanic1$Survived,p=0.7,list = F)
+train_titanic<-Titanic1[index,]
+test_titanic<-Titanic1[-index,]
+dim(train_titanic) # dimension of training data 
+dim(test_titanic) # dimension of testing data
+```
+
+## Applying Machine Learning Algorithms :
+
+### Binary Logistic Regression
+
+```{r}
+LR_model<-glm(Survived~.,data = train_titanic,family = "binomial")
+summary(LR_model)
+```
+
+As we can see Parch, Fare and Embarked has no significance in survival rate so we'll eliminate these columns and re-build the model.
+
+```{r}
+col1<-c("Parch","Fare","Embarked")
+Titanic1[,col1]<-list(NULL)
+
+set.seed(100) 
+index<-createDataPartition(Titanic1$Survived,p=0.7,list = F)
+train_titanic<-Titanic1[index,]
+test_titanic<-Titanic1[-index,]
+dim(train_titanic) 
+dim(test_titanic) 
+
+LR_model<-glm(Survived~.,data = train_titanic,family = "binomial")
+summary(LR_model)
+```
+
+```{r}
+train_titanic_LR<-fitted(LR_model)
+library(ROCR)
+pred<-prediction(train_titanic_LR,train_titanic$Survived)
+perf<-performance(pred,"tpr","fpr")
+plot(perf,colorize=T,print.cutoffs.at=seq(0.1,by=0.05))
+```
+
+```{r}
+pred_LR<-predict(LR_model,test_titanic,type="response")
+pred_LR1<-ifelse(pred_LR<0.35,0,1)
+pred_LR1<-as.factor(pred_LR1)
+confusionMatrix(pred_LR1,test_titanic$Survived)
+```
+
+Binary Logistic Regression gives us an accuracy of **78.95%**
+
+### Naive Bayes Algorithm
+
+Building the model on train data i.e. Training the data and finding the accuracy on test data
+````{r}
+library(e1071)
+NB_model<-naiveBayes(Survived~.,data = train_titanic)
+NB_pred<-predict(NB_model,test_titanic)
+confusionMatrix(NB_pred,test_titanic$Survived)
+````
+
+Naive Bayes algorithm gives accuracy of **81.58%**
+
+### Decision Tree
+
+Building the model on train data i.e. Training the data
+````{r}
+library(rpart)
+library(rpart.plot)
+DT_model<-rpart(Survived~.,data = train_titanic)
+rpart.plot(DT_model)
+````
+
+Checking the Accuracy of model on test data
+````{r}
+DT_pred<-predict(DT_model,test_titanic,type="class")
+confusionMatrix(DT_pred,test_titanic$Survived)
+````
+
+Decision Tree algorithm gives accuracy of **83.46%**
+
+### Random forest
+
+Building the model on train data i.e. Training the data and finding the accuracy on test data
+```{r}
+library(randomForest)
+RF_model<-randomForest(Survived~.,data = train_titanic)
+RF_model
+plot(RF_model)
+RF_pred<-predict(RF_model,test_titanic)
+confusionMatrix(RF_pred,test_titanic$Survived)
+````
+
+Random Forest gives us an accuracy of **82.33%**
+
+## Conclusion :
+After performing various classification algorithms and taking into account their accuracies, we can conclude all the models had an accuracy ranging from 78% to 84%. Out of which **Decision Tree** gave a slightly better accuracy of **83.46%**
